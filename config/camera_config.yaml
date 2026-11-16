@@ -1,0 +1,16 @@
+simple_camera:
+  # Camera device settings
+  device:
+    index: 0
+    width: 640
+    height: 480
+    fps: 30
+
+  # Camera acquisition settings
+  acquisition:
+    max_open_attempts: 5
+    max_read_attempts: 3
+    retry_delay: 0.5
+    
+  image:
+    color_frame: "BGR"
