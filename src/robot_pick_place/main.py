@@ -1,5 +1,5 @@
-from robot_pick_place.perception.camera_config import CameraConfig
-from robot_pick_place.perception.simple_camera import SimpleCamera
+from robot_pick_place.vision.camera_config import CameraConfig
+from robot_pick_place.vision.simple_camera import SimpleCamera
 import cv2
 
 def main():
