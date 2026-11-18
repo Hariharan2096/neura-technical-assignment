@@ -71,7 +71,7 @@ class FakeRobot(RobotInterface):
 
         self.gripper_closed = True
 
-        if self.gripper_closed:
+        if self._grip_results:
             self._last_grip_success = self._grip_results.popleft()
         else:
             self._last_grip_success = True
