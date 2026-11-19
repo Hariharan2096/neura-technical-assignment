@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
-
 import numpy as np
 
-
 class CameraInterface(ABC):
-    """Abstract interface for acquiring BGR images."""
+    """Abstract interface for acquiring web camera images."""
 
     @abstractmethod
     def open(self) -> None:

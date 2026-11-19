@@ -1,11 +1,5 @@
-from dataclasses import dataclass
-
 import numpy as np
-
-@dataclass(frozen=True)
-class Point2D:
-    x: float
-    y: float
+from robot_pick_place.models import Point2D
 
 class CoordinateTransformer:
     """Affine transformation from image coordinates to robot coordinates"""
@@ -37,10 +31,9 @@ class CoordinateTransformer:
             (pixels, np.ones(len(pixels)))
         )
 
+        # Check for collinear points
         if np.linalg.matrix_rank(design) < 3:
-            raise ValueError(
-                "Calibration points must not be collinear"
-            )
+            raise ValueError("Calibration points must not be collinear")
 
         # Fit both robot X and Y simultaneously.
         coefficients, _, _, _ = np.linalg.lstsq(
@@ -58,8 +51,11 @@ class CoordinateTransformer:
                 "Calibration transformation is not invertible"
             )
 
+
     def pixel_to_robot(self, u: float, v: float) -> Point2D:
         """Convert a pixel center to robot XY coordinates (mm)."""
+
+        # Validate the pixel value and raise exception
         if not np.isfinite([u, v]).all():
             raise ValueError("Pixel coordinates must be finite")
 
@@ -72,9 +68,12 @@ class CoordinateTransformer:
 
     def angle_to_robot(self, angle_deg: float) -> float:
         """Convert image-axis orientation into robot-frame yaw."""
+        
+        # Validate the value of angle
         if not np.isfinite(angle_deg):
             raise ValueError("Angle must be finite")
 
+        # Convert deg to radians
         theta = np.deg2rad(angle_deg)
 
         # Direction vector along the object's long axis.

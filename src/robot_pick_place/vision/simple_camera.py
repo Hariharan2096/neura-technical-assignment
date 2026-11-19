@@ -4,7 +4,7 @@ import numpy as np
 from loguru import logger
 
 from .camera_interface import CameraInterface
-from .camera_config import CameraConfig
+from .load_camera_config import CameraConfig
 from .exceptions import CameraError, CameraOpenError, FrameReadError
 
 # Main camera interface
@@ -20,6 +20,8 @@ class SimpleCamera(CameraInterface):
         self.retry_delay = config.acquisition["retry_delay"]
 
         self._capture = None
+
+        logger.info(f"Webcamera opened with index {self.camera_index}")
 
     @property
     def is_open(self) -> bool:

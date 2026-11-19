@@ -11,6 +11,3 @@ simple_camera:
     max_open_attempts: 5
     max_read_attempts: 3
     retry_delay: 0.5
-    
-  image:
-    color_frame: "BGR"

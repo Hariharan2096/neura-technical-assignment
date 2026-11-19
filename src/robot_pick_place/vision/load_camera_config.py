@@ -24,8 +24,6 @@ class CameraConfig:
 
         self._validate()
 
-
-
     def _validate(self) -> None:
         """Validate camera configuration and expose its sections"""
 
@@ -34,29 +32,24 @@ class CameraConfig:
         if not isinstance(camera, dict):
             raise CameraConfigError("Missing or invalid 'simple_camera' section")
 
-        required_sections = ("device", "acquisition", "image")
+        required_sections = ("device", "acquisition")
 
         for section in required_sections:
             if not isinstance(camera.get(section), dict):
                 raise CameraConfigError(f"Missing or invalid 'simple_camera.{section}' section.'")
 
-            self.device = camera["device"]
-            self.acquisition = camera["acquisition"]
-            self.image = camera["image"]
+        self.device = camera["device"]
+        self.acquisition = camera["acquisition"]
 
-            # Validate camera device settings
-            self._validate_integer("index", self.device, minimum=0)
-            self._validate_integer("width", self.image, minimum=1)
-            self._validate_integer("height", self.image, minimum=1)
-            self._validate_integer("fps", self.acquisition, minimum=1)
+        # Validate camera device settings
+        self._validate_integer("index", self.device, minimum=0)
+        self._validate_integer("width", self.device, minimum=1)
+        self._validate_integer("height", self.device, minimum=1)
+        self._validate_integer("fps", self.device, minimum=1)
 
-            # 
-
-            self._validate_integer("max_open_attempts", self.acquisition, minimum=1)
-            self._validate_integer("max_read_attempts", self.acquisition, minimum=1)
-
-            retry_delay = self.acquisition.get("retry_delay")
-
+        self._validate_integer("max_open_attempts", self.acquisition, minimum=1)
+        self._validate_integer("max_read_attempts", self.acquisition, minimum=1)
+        self._validate_float("retry_delay", self.acquisition, minimum=0.1)
 
     @staticmethod
     def _validate_integer(
@@ -73,4 +66,21 @@ class CameraConfig:
         ):
             raise CameraConfigError(
                 f"'{key}' must be an integer >= {minimum}"
+            )
+
+    @staticmethod
+    def _validate_float(
+        key: str,
+        section: dict,
+        minimum: int,
+    ) -> None:
+        value = section.get(key)
+
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, float)
+            or value < minimum
+        ):
+            raise CameraConfigError(
+                f"'{key}' must be an float >= {minimum}"
             )

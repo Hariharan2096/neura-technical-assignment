@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-
 from robot_pick_place.models import RobotPose
 
 class RobotInterface(ABC):

@@ -1,0 +1,11 @@
+simple_camera:
+  device:
+    index: 0
+    width: -640  # Invalid: must be >= 1
+    height: 480
+    fps: 30
+
+  acquisition:
+    max_open_attempts: 0  # Invalid: must be >= 1
+    max_read_attempts: 3
+    retry_delay: -0.5  # Invalid: must be >= 0.1

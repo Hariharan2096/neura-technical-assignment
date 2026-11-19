@@ -1,5 +1,25 @@
+# import cv2
+
+from robot_pick_place.vision.simple_camera import SimpleCamera
+from robot_pick_place.vision.load_camera_config import CameraConfig
 from robot_pick_place.geometry.calibration import CoordinateTransformer
-from robot_pick_place.geometry.pose_generator import PoseGenerator
+
+
+# config = CameraConfig(config_path="config/camera_config.yaml")
+
+# camera = SimpleCamera(
+#     config=config
+# )
+
+# camera.open()
+
+# frame = camera.read()
+
+# cv2.imshow('Display', frame)
+
+# cv2.waitKey(0)
+
+# cv2.destroyAllWindows()
 
 transformer = CoordinateTransformer(
     pixel_points=[
@@ -16,20 +36,9 @@ transformer = CoordinateTransformer(
     ],
 )
 
-# Example detected object
-pixel_u = 320
-pixel_v = 240
-image_angle = 45
+print(transformer.pixel_to_robot(
+    u=200.0,
+    v=200.0
+))
 
-robot_xy = transformer.pixel_to_robot(pixel_u, pixel_v)
-robot_yaw = transformer.angle_to_robot(image_angle)
-
-generator = PoseGenerator()
-poses = generator.generate(
-    x=robot_xy.x,
-    y=robot_xy.y,
-    yaw=robot_yaw,
-)
-
-print("Pick pose:", poses.pick)
-print("Approach pose:", poses.approach)
+print(transformer.angle_to_robot(170))

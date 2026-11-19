@@ -1,6 +1,4 @@
-
 import pytest
-
 from robot_pick_place.geometry.calibration import CoordinateTransformer
 
 
@@ -21,7 +19,6 @@ def transformer():
         ],
     )
 
-
 @pytest.mark.parametrize(
     "u,v,expected_x,expected_y",
     [
@@ -32,6 +29,7 @@ def transformer():
         (320, 240, 220, -40),
     ],
 )
+
 def test_pixel_to_robot(
     transformer, u, v, expected_x, expected_y
 ):
@@ -44,7 +42,7 @@ def test_pixel_to_robot(
 @pytest.mark.parametrize(
     "image_angle,expected_yaw",
     [
-        (0, 90 - 180),   # Horizontal image axis -> robot Y
+        (0, -90),   # Horizontal image axis -> robot Y
         (90, 0),         # Vertical image axis -> robot X
         (45, 45),
         (-45, -45),
@@ -64,3 +62,22 @@ def test_rejects_collinear_calibration():
             pixel_points=[(0, 0), (1, 1), (2, 2)],
             robot_points=[(0, 0), (1, 1), (2, 2)],
         )
+
+def test_rejects_insufficient_points():
+    with pytest.raises(ValueError, match="At least 3"):
+        CoordinateTransformer(
+            pixel_points=[(0, 0), (1, 1)],
+            robot_points=[(0, 0), (1, 1)],
+        )
+
+def test_rejects_invalid_pixel_coordinates(transformer):
+    with pytest.raises(ValueError, match="must be finite"):
+        transformer.pixel_to_robot(
+            u=float("nan"),
+            v=200,
+        )
+
+
+def test_rejects_invalid_angle(transformer):
+    with pytest.raises(ValueError, match="Angle must be finite"):
+        transformer.angle_to_robot(float("inf"))

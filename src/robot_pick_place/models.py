@@ -7,3 +7,8 @@ class RobotPose:
     y: float
     z: float
     yaw: float
+
+@dataclass(frozen=True)
+class Point2D:
+    x: float
+    y: float
