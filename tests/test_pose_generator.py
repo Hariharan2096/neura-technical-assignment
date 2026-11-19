@@ -1,6 +1,5 @@
 
 import pytest
-
 from robot_pick_place.geometry.pose_generator import PoseGenerator
 
 

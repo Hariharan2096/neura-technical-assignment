@@ -3,7 +3,7 @@ import pytest
 
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.fake_robot import FakeRobot
-from robot_pick_place.application.pick_place_cycle import (
+from robot_pick_place.robot.robot_sequence import (
     PickPlaceCycle,
     PickPlacePlan,
     CycleStatus,

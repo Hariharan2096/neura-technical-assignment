@@ -5,7 +5,7 @@ from pathlib import Path
 from robot_pick_place.models import RobotPose
 from robot_pick_place.geometry.calibration import CoordinateTransformer
 from robot_pick_place.geometry.pose_generator import PoseGenerator
-from robot_pick_place.application.pick_place_cycle import CycleStatus, PickPlaceCycle, PickPlacePlan
+from robot_pick_place.robot.robot_sequence import CycleStatus, RobotSequence, ProcessPoses
 from robot_pick_place.vision.camera_interface import CameraInterface
 from robot_pick_place.vision.object_detector import ObjectDetector
 from robot_pick_place.vision.annotator import ImageAnnotator
@@ -40,7 +40,7 @@ class ApplicationResult:
     aborted: bool = False
 
 class PickPlaceApplication:
-    """Coordinate vision, pose planning and robot execution."""
+    """Coordinate vision, pose planning and robot execution as one single application"""
 
     def __init__(
         self,
@@ -49,21 +49,18 @@ class PickPlaceApplication:
         annotator: ImageAnnotator,
         transformer: CoordinateTransformer,
         pose_generator: PoseGenerator,
-        cycle: PickPlaceCycle,
+        seq: RobotSequence,
         place_pose: RobotPose,
         place_approach_pose: RobotPose,
-        workspace: PixelWorkspace | None = None,
     ) -> None:
         self.camera = camera
         self.detector = detector
         self.annotator = annotator
         self.transformer = transformer
         self.pose_generator = pose_generator
-        self.cycle = cycle
+        self.seq = seq
         self.place_pose = place_pose
         self.place_approach_pose = place_approach_pose
-        self.workspace = workspace or PixelWorkspace()
-
 
     def run(
         self,
@@ -93,26 +90,10 @@ class PickPlaceApplication:
 
         # 4. Process objects in detector order.
         for obj in objects:
-            if self.cycle.robot.is_emergency_stopped:
+            if self.seq.robot.is_emergency_stopped:
                 aborted = True
                 logger.error("Emergency stop active")
                 break
-
-            # Reject objects outside calibrated image region.
-            if not self.workspace.contains(
-                obj.center_u, obj.center_v
-            ):
-                results.append(
-                    ObjectExecutionResult(
-                        object_id=obj.object_id,
-                        status="OUT_OF_WORKSPACE",
-                        message=(
-                            "Object center is outside "
-                            "the calibrated pixel region"
-                        ),
-                    )
-                )
-                continue
 
             # 5. Convert image coordinates into robot XY.
             robot_xy = self.transformer.pixel_to_robot(
@@ -132,7 +113,7 @@ class PickPlaceApplication:
             )
 
             # 7. Construct the robot execution plan.
-            plan = PickPlacePlan(
+            plan = ProcessPoses(
                 pick_pose=pick_poses.pick,
                 pick_approach_pose=pick_poses.approach,
                 place_pose=self.place_pose,
@@ -140,24 +121,24 @@ class PickPlaceApplication:
             )
 
             # 8. Execute the pick-and-place cycle.
-            cycle_result = self.cycle.run(plan)
+            seq_result = self.seq.run(plan)
 
             results.append(
                 ObjectExecutionResult(
                     object_id=obj.object_id,
-                    status=cycle_result.status.name,
-                    message=cycle_result.message,
-                    grip_attempts=cycle_result.grip_attempts,
+                    status=seq_result.status.name,
+                    message=seq_result.message,
+                    grip_attempts=seq_result.grip_attempts,
                 )
             )
 
             logger.info(
-                f"Object {obj.object_id}: {cycle_result.status.name}"
+                f"Object {obj.object_id}: {seq_result.status.name}"
             )
 
             # 9. Abort immediately on emergency stop
             # or a robot error with unknown safety state.
-            if cycle_result.status in (
+            if seq_result.status in (
                 CycleStatus.EMERGENCY_STOPPED,
                 CycleStatus.ROBOT_ERROR,
             ):

@@ -1,17 +1,8 @@
 import math
-from dataclasses import dataclass
-
 import cv2
 import numpy as np
 
-@dataclass(frozen=True)
-class DetectedObject:
-    object_id: int
-    center_u: float
-    center_v: float
-    angle_deg: float
-    corners: tuple[tuple[float, float], ...]
-    area: float
+from robot_pick_place.models import DetectedObject
 
 class ObjectDetector:
     """Detect dark rectangular objects on a light background."""
@@ -21,7 +12,6 @@ class ObjectDetector:
         min_area: float = 500.0,
         max_area: float = 50000.0,
         min_rectangularity: float = 0.85,
-        min_aspect_ratio: float = 1.15,
         blur_kernel_size: int = 5,
     ) -> None:
         if not 0 < min_area < max_area:
@@ -31,13 +21,9 @@ class ObjectDetector:
 
         if not 0 < min_rectangularity <= 1:
             raise ValueError(
-                "min_rectangularity must be in (0, 1]"
+                "min_rectangularity must be in [0, 1]"
             )
 
-        if min_aspect_ratio < 1:
-            raise ValueError(
-                "min_aspect_ratio must be >= 1"
-            )
 
         if (
             isinstance(blur_kernel_size, bool)
@@ -52,7 +38,6 @@ class ObjectDetector:
         self.min_area = min_area
         self.max_area = max_area
         self.min_rectangularity = min_rectangularity
-        self.min_aspect_ratio = min_aspect_ratio
         self.blur_kernel_size = blur_kernel_size
 
     @staticmethod
@@ -99,19 +84,23 @@ class ObjectDetector:
     ) -> list[DetectedObject]:
         """Return detected rectangles sorted by image position."""
 
+        # Validate image frame
         self._validate_image(image)
 
-        gray = cv2.cvtColor(
-            image,
+        # Convert BGR to greyscale image
+        gray = cv2.cvtColor( 
+            image, 
             cv2.COLOR_BGR2GRAY,
         )
 
-        blurred = cv2.GaussianBlur(
-            gray,
-            (self.blur_kernel_size, self.blur_kernel_size),
+        # Apply Gaussian blur for image smoothening
+        blurred = cv2.GaussianBlur( 
+            gray, 
+            (self.blur_kernel_size, self.blur_kernel_size), 
             0,
         )
 
+        # Binary image conversion
         _, binary = cv2.threshold(
             blurred,
             0,
@@ -119,6 +108,7 @@ class ObjectDetector:
             cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU,
         )
 
+        # Find contours in the image
         contours, _ = cv2.findContours(
             binary,
             cv2.RETR_EXTERNAL,
@@ -130,26 +120,22 @@ class ObjectDetector:
         for contour in contours:
             area = cv2.contourArea(contour)
 
+            # Applpy area filter
             if not self.min_area <= area <= self.max_area:
                 continue
 
             rect = cv2.minAreaRect(contour)
             (center_u, center_v), (width, height), _ = rect
 
+            # Apply size filter
             if width <= 0 or height <= 0:
                 continue
 
             rectangle_area = width * height
             rectangularity = area / rectangle_area
 
+            # Apply rectangularity filter
             if rectangularity < self.min_rectangularity:
-                continue
-
-            aspect_ratio = max(width, height) / min(
-                width, height
-            )
-
-            if aspect_ratio < self.min_aspect_ratio:
                 continue
 
             corners_array = cv2.boxPoints(rect)

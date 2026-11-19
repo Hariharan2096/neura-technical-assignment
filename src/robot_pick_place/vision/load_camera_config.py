@@ -3,7 +3,7 @@ import yaml
 
 from .exceptions import CameraConfigError
 
-class CameraConfig:
+class CameraConfigLoader:
 
     def __init__(self, config_path: str):
 

@@ -39,7 +39,7 @@ class ImageAnnotator:
                 annotated,
                 [corners_int],
                 isClosed=True,
-                color=(0, 255, 0),
+                color=(0, 0, 0),
                 thickness=2,
             )
 
@@ -48,9 +48,10 @@ class ImageAnnotator:
                 int(round(obj.center_v)),
             )
 
+
             # Draw orientation along the rectangle's long axis.
             theta = np.deg2rad(obj.angle_deg)
-            line_length = 35
+            line_length = 50
 
             endpoint = (
                 int(round(
@@ -63,19 +64,49 @@ class ImageAnnotator:
                 )),
             )
 
-            cv2.line(
+            # Draw dotted orientation line
+            dot_spacing = 7
+            dot_radius = 2
+            line_length = 35
+
+            theta = np.deg2rad(obj.angle_deg)
+
+            for distance in range(0, line_length, dot_spacing):
+                dot_x = int(round(
+                    obj.center_u + distance * np.cos(theta)
+                ))
+                dot_y = int(round(
+                    obj.center_v + distance * np.sin(theta)
+                ))
+
+                cv2.circle(
+                    annotated,
+                    (dot_x, dot_y),
+                    radius=dot_radius,
+                    color=(0, 0, 0),  # White (BGR)
+                    thickness=-1,
+                )
+
+            # Draw arrowhead only at the endpoint
+            arrow_start = (
+                int(round(obj.center_u + (line_length - 8) * np.cos(theta))),
+                int(round(obj.center_v + (line_length - 8) * np.sin(theta))),
+            )
+
+            cv2.arrowedLine(
                 annotated,
-                center,
+                arrow_start,
                 endpoint,
-                color=(255, 0, 0),
+                color=(0, 0, 0),
                 thickness=2,
+                tipLength=0.5,
             )
 
             cv2.circle(
                 annotated,
                 center,
                 radius=5,
-                color=(0, 0, 255),
+                color=(255, 255, 255),
                 thickness=-1,
             )
 
@@ -97,17 +128,6 @@ class ImageAnnotator:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,
                 (0, 0, 0),
-                2,
-                cv2.LINE_AA,
-            )
-
-            cv2.putText(
-                annotated,
-                label,
-                text_position,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.45,
-                (255, 255, 255),
                 1,
                 cv2.LINE_AA,
             )

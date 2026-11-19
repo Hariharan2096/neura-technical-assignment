@@ -1,12 +1,6 @@
 import math
-from dataclasses import dataclass
 
-from robot_pick_place.models import RobotPose
-
-@dataclass(frozen=True)
-class PickPoses:
-    pick: RobotPose
-    approach: RobotPose
+from robot_pick_place.models import RobotPose, PickPoses
 
 class PoseGenerator:
     """Generate top-down pick and approach poses."""
@@ -34,10 +28,10 @@ class PoseGenerator:
         self.approach_height = approach_height
 
     def generate(
-            self,
-            x: float,
-            y: float,
-            yaw: float,
+        self,
+        x: float,
+        y: float,
+        yaw: float,
     ) -> PickPoses:
         """Generate pick and approach poses in robot coordinates."""
 

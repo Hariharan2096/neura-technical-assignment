@@ -1,18 +1,20 @@
 import argparse
-import logging
 import sys
 from pathlib import Path
 from loguru import logger
 
+from robot_pick_place.vision.simple_camera import SimpleCamera
+from robot_pick_place.vision.image_file_camera import ImageFileCamera
+from robot_pick_place.vision.load_camera_config import CameraConfigLoader 
+
+
 from robot_pick_place.application.pick_place_app import PickPlaceApplication
-from robot_pick_place.application.pick_place_cycle import PickPlaceCycle
+from robot_pick_place.robot.robot_sequence import RobotSequence
 from robot_pick_place.geometry.calibration import CoordinateTransformer
 from robot_pick_place.geometry.pose_generator import PoseGenerator
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.fake_robot import FakeRobot
 from robot_pick_place.vision.annotator import ImageAnnotator
-from robot_pick_place.vision.image_file_camera import ImageFileCamera
-from robot_pick_place.vision.simple_camera import SimpleCamera
 from robot_pick_place.vision.object_detector import ObjectDetector
 
 def parse_args(
@@ -42,18 +44,6 @@ def parse_args(
         help="Annotated output image path",
     )
 
-    parser.add_argument(
-        "--camera-index",
-        type=int,
-        default=0,
-        help="Webcam device index"
-    )
-
-    parser.add_argument(
-        "--log-level",
-        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
-        default="INFO",
-    )
     args = parser.parse_args(argv)
 
     if args.source == "image" and args.input is None:
@@ -62,7 +52,6 @@ def parse_args(
         )
 
     return args
-
 
 def create_transformer() -> CoordinateTransformer:
     """Create transformer using assignment calibration."""
@@ -88,21 +77,17 @@ def create_camera(args: argparse.Namespace):
     if args.source == "image":
         return ImageFileCamera(
             image_path=args.input,
-            width=640,
-            height=480,
         )
 
     if args.source == "webcam":
+        config = CameraConfigLoader()
         return SimpleCamera(
-            camera_index = args.camera_index,
-            width=640,
-            height=480,
+            config=config
         )
 
     raise ValueError(
         "Webcam source is not yet wired into main.py"
     )
-
 
 def create_application(
     args: argparse.Namespace,
@@ -112,10 +97,10 @@ def create_application(
     camera = create_camera(args)
 
     detector = ObjectDetector(
-        min_area=500,
-        max_area=50000,
+        min_area=50,
+        max_area=15000,
         min_rectangularity=0.85,
-        min_aspect_ratio=1.15,
+        blur_kernel_size=3
     )
 
     annotator = ImageAnnotator()
@@ -142,7 +127,7 @@ def create_application(
     robot.set_part_available(True)
 
 
-    cycle = PickPlaceCycle(
+    seq = RobotSequence(
         robot=robot,
         part_timeout=5.0,
         poll_interval=0.1,
@@ -171,7 +156,7 @@ def create_application(
         annotator=annotator,
         transformer=transformer,
         pose_generator=pose_generator,
-        cycle=cycle,
+        seq=seq,
         place_pose=place_pose,
         place_approach_pose=place_approach_pose,
     )
@@ -180,14 +165,6 @@ def main(argv: list[str] | None = None) -> int:
     """Execute the application and return an exit code."""
 
     args = parse_args(argv)
-
-    logging.basicConfig(
-        level=getattr(logging, args.log_level),
-        format=(
-            "%(asctime)s | %(levelname)s | "
-            "%(name)s | %(message)s"
-        ),
-    )
 
     try:
         app = create_application(args)

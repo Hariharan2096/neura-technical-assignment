@@ -1,5 +1,6 @@
 from collections import deque
 from collections.abc import Callable, Iterable
+import random
 
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.robot_interface import RobotInterface
@@ -13,6 +14,7 @@ class FakeRobot(RobotInterface):
         self,
         home_pose: RobotPose,
         grip_results: Iterable[bool] = (),
+        grip_success_probability: float = 0.5,
     ) -> None:
         self.home_pose = home_pose
         self.current_pose = home_pose
@@ -30,6 +32,13 @@ class FakeRobot(RobotInterface):
         # Optional test hook for injecting a stop during motion.
         self.on_motion: Callable[[], None] | None = None
 
+        if not 0.0 <= grip_success_probability <= 1.0:
+            raise ValueError(
+                "grip_success_probability must be between 0 and 1"
+            )
+
+        self.grip_success_probability = grip_success_probability
+
 
     @property
     def is_emergency_stopped(self):
@@ -41,7 +50,9 @@ class FakeRobot(RobotInterface):
                 "Robot operation blocked: emergency stop active."
             )
 
+
     def move_to(self, pose: RobotPose) -> None:
+        """Commands the fake robot to move to a target pose."""
         self._check_safety()
 
         # Simulate an interruption before motion completes
@@ -51,14 +62,19 @@ class FakeRobot(RobotInterface):
         self._check_safety()
 
         self.current_pose = pose
-        self.command_history.append(("move_to", pose))
+        if pose != self.home_pose:
+            self.command_history.append(("move_to", pose))
+
 
     def move_home(self) -> None:
+        """Commands the fake robot to move to home pose."""
         self._check_safety()
         self.move_to(self.home_pose)
         self.command_history.append(("move_home",))
 
+
     def open_gripper(self) -> None:
+        """Executes gripper open command."""
         self._check_safety()
 
         self.gripper_closed = False
@@ -74,7 +90,9 @@ class FakeRobot(RobotInterface):
         if self._grip_results:
             self._last_grip_success = self._grip_results.popleft()
         else:
-            self._last_grip_success = True
+            self._last_grip_success = (
+                random.random() < self.grip_success_probability
+            )
 
         self.command_history.append(("close_gripper",))
 

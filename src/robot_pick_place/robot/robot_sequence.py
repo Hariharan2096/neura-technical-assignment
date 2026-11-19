@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Callable
 
-from robot_pick_place.models import RobotPose
+from robot_pick_place.models import ProcessPoses
 from robot_pick_place.robot.robot_interface import RobotInterface
 from robot_pick_place.robot.exceptions import EmergencyStopError, RobotError
 
@@ -17,20 +17,12 @@ class CycleStatus(Enum):
 
 
 @dataclass(frozen=True)
-class PickPlacePlan:
-    pick_pose: RobotPose
-    pick_approach_pose: RobotPose
-    place_pose: RobotPose
-    place_approach_pose: RobotPose
-
-
-@dataclass(frozen=True)
 class CycleResult:
     status: CycleStatus
     grip_attempts: int = 0
     message: str = ""
 
-class PickPlaceCycle:
+class RobotSequence:
     """Coordinates one pick and place application cycle."""
 
     def __init__(
@@ -75,7 +67,7 @@ class PickPlaceCycle:
 
             self.sleep(min(self.poll_interval, remaining))
 
-    def _attempt_grip(self, plan: PickPlacePlan) -> int | None:
+    def _attempt_grip(self, plan: ProcessPoses) -> int | None:
         total_attempts = 1 + self.max_grip_retries
 
         for attempt in range(1, total_attempts + 1):
@@ -100,7 +92,7 @@ class PickPlaceCycle:
 
         return None
 
-    def _place_part(self, plan: PickPlacePlan) -> None:
+    def _place_part(self, plan: ProcessPoses) -> None:
         # First retreat vertically from the pick location.
         self.robot.move_to(plan.pick_approach_pose)
 
@@ -111,7 +103,7 @@ class PickPlaceCycle:
         self.robot.open_gripper()
         self.robot.move_to(plan.place_approach_pose)
 
-    def run(self, plan: PickPlacePlan) -> CycleResult:
+    def run(self, plan: ProcessPoses) -> CycleResult:
         """Execute one cycle and report its result."""
 
         grip_attempts = 0

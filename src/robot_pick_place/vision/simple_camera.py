@@ -4,12 +4,12 @@ import numpy as np
 from loguru import logger
 
 from .camera_interface import CameraInterface
-from .load_camera_config import CameraConfig
+from .load_camera_config import CameraConfigLoader
 from .exceptions import CameraError, CameraOpenError, FrameReadError
 
 # Main camera interface
 class SimpleCamera(CameraInterface):
-    def __init__(self, config: CameraConfig):
+    def __init__(self, config: CameraConfigLoader):
         self.camera_index = config.device["index"]
         self.width = config.device["width"]
         self.height = config.device["height"]
