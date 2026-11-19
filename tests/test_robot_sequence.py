@@ -4,15 +4,16 @@ import pytest
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.fake_robot import FakeRobot
 from robot_pick_place.robot.robot_sequence import (
-    PickPlaceCycle,
-    PickPlacePlan,
+    RobotSequence,
     CycleStatus,
 )
+
+from robot_pick_place.models import ProcessPoses
 
 
 @pytest.fixture
 def plan():
-    return PickPlacePlan(
+    return ProcessPoses(
         pick_pose=RobotPose(220, -40, 20, 45),
         pick_approach_pose=RobotPose(220, -40, 70, 45),
         place_pose=RobotPose(260, 30, 20, 0),
@@ -36,9 +37,9 @@ def make_robot(home_pose, grip_results=(True,)):
 
 def test_successful_pick_and_place(home_pose, plan):
     robot = make_robot(home_pose)
-    cycle = PickPlaceCycle(robot)
+    seq = RobotSequence(robot)
 
-    result = cycle.run(plan)
+    result = seq.run(plan)
 
     assert result.status == CycleStatus.SUCCESS
     assert result.grip_attempts == 1
@@ -53,7 +54,7 @@ def test_grip_succeeds_on_second_attempt(home_pose, plan):
         grip_results=[False, True],
     )
 
-    result = PickPlaceCycle(robot).run(plan)
+    result = RobotSequence(robot).run(plan)
 
     assert result.status == CycleStatus.SUCCESS
     assert result.grip_attempts == 2
@@ -71,7 +72,7 @@ def test_grip_failure_after_three_attempts(home_pose, plan):
         grip_results=[False, False, False],
     )
 
-    result = PickPlaceCycle(robot).run(plan)
+    result = RobotSequence(robot).run(plan)
 
     assert result.status == CycleStatus.GRIP_FAILED
     assert result.grip_attempts == 3
@@ -95,7 +96,7 @@ def test_part_timeout(home_pose, plan):
 
     clock = FakeClock()
 
-    cycle = PickPlaceCycle(
+    cycle = RobotSequence(
         robot,
         part_timeout=1.0,
         poll_interval=0.1,
@@ -117,7 +118,7 @@ def test_estop_before_cycle(home_pose, plan):
     robot = make_robot(home_pose)
     robot.trigger_emergency_stop()
 
-    result = PickPlaceCycle(robot).run(plan)
+    result = RobotSequence(robot).run(plan)
 
     assert result.status == CycleStatus.EMERGENCY_STOPPED
     assert robot.current_pose == home_pose
@@ -128,7 +129,7 @@ def test_estop_during_motion(home_pose, plan):
     robot = make_robot(home_pose)
     robot.on_motion = robot.trigger_emergency_stop
 
-    result = PickPlaceCycle(robot).run(plan)
+    result = RobotSequence(robot).run(plan)
 
     assert result.status == CycleStatus.EMERGENCY_STOPPED
     assert robot.current_pose == home_pose
@@ -142,7 +143,7 @@ def test_estop_during_motion(home_pose, plan):
 def test_successful_command_sequence(home_pose, plan):
     robot = make_robot(home_pose)
 
-    result = PickPlaceCycle(robot).run(plan)
+    result = RobotSequence(robot).run(plan)
 
     assert result.status == CycleStatus.SUCCESS
 
@@ -160,6 +161,5 @@ def test_successful_command_sequence(home_pose, plan):
         "move_to",  # Place
         "open_gripper",
         "move_to",  # Place retreat
-        "move_to",  # Home (FakeRobot implementation)
         "move_home",
     ]

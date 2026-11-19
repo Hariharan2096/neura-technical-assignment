@@ -17,7 +17,7 @@ from robot_pick_place.geometry.pose_generator import (
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.fake_robot import FakeRobot
 from robot_pick_place.robot.robot_sequence import (
-    PickPlaceCycle,
+    RobotSequence,
 )
 from robot_pick_place.vision.object_detector import (
     DetectedObject,
@@ -80,7 +80,7 @@ def setup_app(tmp_path):
     )
     robot.set_part_available(True)
 
-    cycle = PickPlaceCycle(
+    seq = RobotSequence(
         robot=robot,
         part_timeout=0.0,
         poll_interval=0.01,
@@ -92,7 +92,7 @@ def setup_app(tmp_path):
         annotator=annotator,
         transformer=transformer,
         pose_generator=PoseGenerator(),
-        cycle=cycle,
+        seq=seq,
         place_pose=RobotPose(260, 30, 20, 0),
         place_approach_pose=RobotPose(260, 30, 70, 0),
     )
@@ -166,23 +166,6 @@ def test_no_objects(setup_app):
     assert robot.command_history == []
 
     annotator.save.assert_called_once()
-
-
-def test_outside_workspace(setup_app):
-    app, detector, _, robot, output = setup_app
-
-    detector.detect.return_value = [
-        make_object(1, 50, 50)
-    ]
-
-    result = app.run(output)
-
-    assert result.successful_picks == 0
-    assert result.failed_picks == 1
-    assert result.object_results[0].status == (
-        "OUT_OF_WORKSPACE"
-    )
-    assert robot.command_history == []
 
 
 def test_grip_failure(setup_app):

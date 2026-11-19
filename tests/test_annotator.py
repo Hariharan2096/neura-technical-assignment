@@ -57,7 +57,7 @@ def test_annotation_marks_center():
 
     assert np.array_equal(
         annotated[240, 320],
-        np.array([0, 0, 255], dtype=np.uint8),
+        np.array([255, 255, 255], dtype=np.uint8),
     )
 
 

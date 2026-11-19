@@ -1,8 +1,7 @@
 from pathlib import Path
 import pytest
-import yaml
 
-from robot_pick_place.vision.load_camera_config import CameraConfig
+from robot_pick_place.vision.load_camera_config import CameraConfigLoader
 from robot_pick_place.vision.exceptions import CameraConfigError
 
 # Locate the project root relative to this test file
@@ -23,12 +22,12 @@ INVALID_CONFIG_PATH = (
 def camera_config():
     """Load the existing camera configuration."""
 
-    return CameraConfig(str(VALID_CONFIG_PATH))
+    return CameraConfigLoader(str(VALID_CONFIG_PATH))
 
 def test_load_valid_camera_config():
     """Valid camera configuration should load successfully."""
 
-    config = CameraConfig(str(VALID_CONFIG_PATH))
+    config = CameraConfigLoader(str(VALID_CONFIG_PATH))
 
     assert config.device["index"] == 0
     assert config.device["width"] == 640
@@ -49,7 +48,7 @@ def test_load_invalid_camera_config():
         CameraConfigError,
         match="width",
     ):
-        CameraConfig(str(INVALID_CONFIG_PATH))
+        CameraConfigLoader(str(INVALID_CONFIG_PATH))
 
 
 def test_camera_config_structure(camera_config):
@@ -62,7 +61,7 @@ def test_missing_camera_config(tmp_path):
     missing_path = tmp_path / "nonexistent.yaml"
 
     with pytest.raises(FileNotFoundError):
-        CameraConfig(str(missing_path))
+        CameraConfigLoader(str(missing_path))
 
 @pytest.mark.parametrize(
     "value",
@@ -71,7 +70,7 @@ def test_missing_camera_config(tmp_path):
 
 def test_invalid_camera_width(value):
     with pytest.raises(CameraConfigError):
-        CameraConfig._validate_integer(
+        CameraConfigLoader._validate_integer(
             key="width",
             section={"width": value},
             minimum=1,
@@ -83,7 +82,7 @@ def test_invalid_camera_width(value):
 )
 def test_invalid_retry_delay(value):
     with pytest.raises(CameraConfigError):
-        CameraConfig._validate_float(
+        CameraConfigLoader._validate_float(
             key="retry_delay",
             section={"retry_delay": value},
             minimum=0.1,
