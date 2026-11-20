@@ -1,6 +1,8 @@
 from collections import deque
 from collections.abc import Callable, Iterable
 import random
+import time
+from threading import Event
 
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.robot_interface import RobotInterface
@@ -15,6 +17,9 @@ class FakeRobot(RobotInterface):
         home_pose: RobotPose,
         grip_results: Iterable[bool] = (),
         grip_success_probability: float = 0.5,
+        motion_delay: float = 5.0,
+        gripper_open_delay: float = 1.0,
+        gripper_close_delay: float = 1.0,
     ) -> None:
         self.home_pose = home_pose
         self.current_pose = home_pose
@@ -39,6 +44,20 @@ class FakeRobot(RobotInterface):
 
         self.grip_success_probability = grip_success_probability
 
+        for name, value in (
+            ("motion_delay", motion_delay),
+            ("gripper_open_delay", gripper_open_delay),
+            ("gripper_close_delay", gripper_close_delay),
+        ):
+            if not 0.0 <= value <= float("inf"):
+                raise ValueError(f"{name} must be a finite and non-negative.")
+
+        self.motion_delay = motion_delay
+        self.gripper_open_delay = gripper_open_delay
+        self.gripper_close_delay = gripper_close_delay
+
+        self._estop_event = Event()
+
 
     @property
     def is_emergency_stopped(self):
@@ -50,9 +69,20 @@ class FakeRobot(RobotInterface):
                 "Robot operation blocked: emergency stop active."
             )
 
+    def _simulate_delay(self, duration: float) -> None:
+        """Simulation sequence delays which can be interrupted by E-Stop"""
+
+        self._check_safety()
+
+        if self._estop_event.wait(timeout=duration):
+            self._check_safety()
+
+        self._check_safety()
+
 
     def move_to(self, pose: RobotPose) -> None:
-        """Commands the fake robot to move to a target pose."""
+        """Simulate the fake robot movement to a target pose."""
+        
         self._check_safety()
 
         # Simulate an interruption before motion completes
@@ -61,7 +91,12 @@ class FakeRobot(RobotInterface):
 
         self._check_safety()
 
+        self._simulate_delay(self.motion_delay)
+
+        self._check_safety()
+
         self.current_pose = pose
+
         if pose != self.home_pose:
             self.command_history.append(("move_to", pose))
 
@@ -77,12 +112,22 @@ class FakeRobot(RobotInterface):
         """Executes gripper open command."""
         self._check_safety()
 
+        self._simulate_delay(self.gripper_open_delay)
+
+        self._check_safety()
+
         self.gripper_closed = False
         self._last_grip_success = False
+
         self.command_history.append(("open_gripper",))
 
 
     def close_gripper(self) -> None:
+        """Simulates the gripper close action"""
+        self._check_safety()
+
+        self._simulate_delay(self.gripper_close_delay)
+
         self._check_safety()
 
         self.gripper_closed = True
@@ -115,7 +160,9 @@ class FakeRobot(RobotInterface):
         self.part_available = available
 
     def trigger_emergency_stop(self) -> None:
+        self._estop_event.set()
         self._emergency_stopped = True
 
     def release_emergency_stop(self) -> None:
+        self._estop_event.clear()
         self._emergency_stopped = False

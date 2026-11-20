@@ -35,6 +35,6 @@ tests/test_image_file_camera.py
 tests/test_main.py
 tests/test_object_detector.py
 tests/test_pick_place_app.py
-tests/test_pick_place_cycle.py
 tests/test_pose_generator.py
+tests/test_robot_sequence.py
 tests/test_simple_camera.py

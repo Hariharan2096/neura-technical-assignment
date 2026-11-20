@@ -121,6 +121,10 @@ def create_application(
 
     robot = FakeRobot(
         home_pose=home_pose,
+        grip_success_probability=0.8,
+        motion_delay=3.0,
+        gripper_open_delay=1.5,
+        gripper_close_delay=1.5,
     )
 
     # Simulation assumption: a part is available.
