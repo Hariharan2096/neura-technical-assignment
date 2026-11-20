@@ -11,19 +11,6 @@ from robot_pick_place.vision.object_detector import ObjectDetector
 from robot_pick_place.vision.annotator import ImageAnnotator
 
 @dataclass(frozen=True)
-class PixelWorkspace:
-    min_u: float = 100.0
-    max_u: float = 540.0
-    min_v: float = 100.0
-    max_v: float = 380.0
-
-    def contains(self, u: float, v: float) -> bool:
-        return (
-            self.min_u <= u <= self.max_u
-            and self.min_v <= v <= self.max_v
-        )
-
-@dataclass(frozen=True)
 class ObjectExecutionResult:
     object_id: int
     status: str
