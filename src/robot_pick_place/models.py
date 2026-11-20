@@ -27,7 +27,6 @@ class DetectedObject:
     corners: tuple[tuple[float, float], ...]
     area: float
 
-
 @dataclass(frozen=True)
 class ProcessPoses:
     pick_pose: RobotPose

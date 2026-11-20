@@ -60,27 +60,12 @@ The default output path is `output/annotated.png`, which is **different** from t
 
 ## Main Design Decisions
 
-| Design decision | Description |
+| Design decision | Reasoning |
 | --- | --- |
-| Modular software architecture  | For this project, I have broken down the overall application workflow into distinct modules and implemented them separately. This makes the project easier to maintain, test, debug, and extend without affecting unrelated modules|
-| Abstraction interface | Abstract interfaces are defined for the robot and camera modules, with concrete implementations extending these interfaces. This design enables seamless replacement of simulated components with real hardware and provides the flexibility to integrate additional hardware in the future without significant changes to the existing application logic |
-| Estop simulation and operator inputs | The safety design uses an E-stop event to interrupt the simulated operations and a recovery callback to request operator acknowledgement to mimic the real time operating conditions |
-| Coordinate calibration | An affine transformation-based calibration approach is used to map the detected object positions from camera coordinates to robot coordinates. | 
-| Configurable simulation | |
-
-
-## Known limitations
-
-The following observations reflect the **current uploaded source**, not proposed future changes:
-
-1. **E-stop state mismatch:** `FakeRobot.is_emergency_stopped` reads `_estop_event`, and `trigger_emergency_stop()` / `release_emergency_stop()` set/clear that event; however, `_check_safety()` checks `_emergency_stopped`, which is initialized `False` and is not updated by those methods. This makes E-stop enforcement inconsistent. `_check_safety()` should check the event-backed property.
-2. **Operator-abort handler issues in uploaded snapshot:** `RobotSequence.run()` catches `RobotError` before `OperatorAbortError`, making the latter unreachable because it subclasses `RobotError`. The handler also uses `self.robot_is_emergency_stopped` instead of `self.robot.is_emergency_stopped`. **Fix:** catch `OperatorAbortError` before `RobotError`, check the robot property, verify release before homing, and return `OPERATOR_ABORTED` on successful homing. See [Operator abort handling](#operator-abort-handling).
-3. **Workspace enforcement:** `PixelWorkspace` is defined in `pick_place_app.py`, but the object-processing loop does not currently apply a workspace bounds check before transforming and executing a detected object.
-4. **No dashboard:** The uploaded project does not contain a working Streamlit dashboard. Streamlit is not listed in `pyproject.toml`.
-5. **Single-frame processing:** Image and webcam modes process one frame per CLI invocation. There is no continuous camera tracking or live robot feedback.
-6. **Simulation-only homing and placement:** Home and place poses are fixed examples; collision avoidance, physical interlocks, and safe path planning are not implemented.
-
-## Future Scopes
+| Modular software architecture  | For this project, I have broken down the overall application workflow into distinct modules and implemented them separately. This makes the project easier to maintain, test, debug, and extend without affecting unrelated modules. |
+| Abstraction interface | Abstract interfaces are defined for the robot and camera modules, with concrete implementations extending these interfaces. This design enables seamless replacement of simulated components with real hardware and provides the flexibility to integrate additional hardware in the future without significant changes to the existing application logic. |
+| E-stop simulation and operator Interaction | 	The safety mechanism uses an E-stop event to interrupt simulated robot operations and a recovery callback to obtain operator acknowledgement, closely replicating real-world emergency stop and recovery scenarios. |
+| Coordinate calibration | An affine transformation-based calibration approach is used to map the detected object positions from camera coordinates to robot coordinates. Further, the calibration parameters can be updated without core application logic. | 
 
 ---
 
@@ -88,12 +73,11 @@ The following observations reflect the **current uploaded source**, not proposed
 
 1. **Define Edge cases and error handling methods that you would like to integrate
 and how?**  
-xxx
-
+For this application, the common edge cases that i would define are unsuccessful object detection due to external factors such as specular reflection or similar, object lying partly outside the camera field of view, and object slipping from gripper during robot movement. Further, I would like to integrate error handling methods for communication error, Process errors, Hardware malfunctions such as device failures, software based errors such as wrong configuration or similar. The error handling methods are integrated as separate functions and are executed everytime at the start of the program cycle to catch the errors beforehand so that the system does not execute a movement.
 
 2. **A robot consistently picks 2 mm away from the target. Where do you look
 first?**  
-Since the nature of the error is steady state, first I would look at the tool center point defined in the robot software and verify if it is calculated correctly based on the end effector design.
+Since the nature of the error is steady state, first I would look at the tool center point defined in the robot software and verify if it is calculated correctly based on the end effector design. Once the TCP has been verified and the issue still persists, secondly, the transformation matrix from camera to robot coordinates can also be checked and verified. 
 
 3. **What should the software do when an emergency stop is released?**  
-When the emergency stop is released, the software should wait for the operator to acknowledge the pressing of the estop and make sure that it is safe to run the robot again.
+When the emergency stop is released, the software should wait for the operator to acknowledge the pressing of the estop and make sure that it is safe to run the robot again. First, the software should raise an alarm that the emergency stop has been pressed and then should wait for acknowledgement.
