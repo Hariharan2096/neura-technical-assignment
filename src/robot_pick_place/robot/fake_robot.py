@@ -20,6 +20,9 @@ class FakeRobot(RobotInterface):
         motion_delay: float = 5.0,
         gripper_open_delay: float = 1.0,
         gripper_close_delay: float = 1.0,
+        simulate_estop: bool = False,
+        estop_probability: float = 0.5,
+        estop_seed: int | None = None,
     ) -> None:
         self.home_pose = home_pose
         self.current_pose = home_pose
@@ -58,7 +61,16 @@ class FakeRobot(RobotInterface):
 
         self._estop_event = Event()
 
+        if not 0.0 <= estop_probability <= 1.0:
+            raise ValueError(
+                "estop_probability must be between 0 and 1"
+            )
 
+        self.simulate_estop = simulate_estop
+        self.estop_probability = estop_probability
+
+        self._estop_rng = random.Random(estop_seed)
+        
     @property
     def is_emergency_stopped(self):
         return self._emergency_stopped
@@ -79,11 +91,32 @@ class FakeRobot(RobotInterface):
 
         self._check_safety()
 
+    def _maybe_trigger_random_estop(
+        self,
+        operation: str,
+    ) -> None:
+        """Randomly trigger E-stop before a robot operation."""
+
+        if not self.simulate_estop:
+            return
+
+        self._check_safety()
+
+        if self._estop_rng.random() < self.estop_probability:
+            self.trigger_emergency_stop()
+
+            raise EmergencyStopError(
+                f"Simulated random E-stop during {operation}"
+            )
 
     def move_to(self, pose: RobotPose) -> None:
         """Simulate the fake robot movement to a target pose."""
         
         self._check_safety()
+
+        self._maybe_trigger_random_estop(
+            f"move_to({pose})"
+        )
 
         # Simulate an interruption before motion completes
         if self.on_motion is not None:
@@ -112,6 +145,9 @@ class FakeRobot(RobotInterface):
         """Executes gripper open command."""
         self._check_safety()
 
+        self._maybe_trigger_random_estop(
+            "open_gripper"
+        )
         self._simulate_delay(self.gripper_open_delay)
 
         self._check_safety()
@@ -126,6 +162,9 @@ class FakeRobot(RobotInterface):
         """Simulates the gripper close action"""
         self._check_safety()
 
+        self._maybe_trigger_random_estop(
+            "close_gripper"
+        )
         self._simulate_delay(self.gripper_close_delay)
 
         self._check_safety()

@@ -89,3 +89,60 @@ def test_part_availability(robot):
     robot.set_part_available(True)
 
     assert robot.is_part_available()
+
+
+def test_random_estop_disabled(home_pose):
+    robot = FakeRobot(
+        home_pose=home_pose,
+        simulate_estop=False,
+        estop_probability=1.0,
+    )
+
+    robot.open_gripper()
+
+    assert robot.is_emergency_stopped is False
+
+
+def test_random_estop_guaranteed(home_pose):
+    robot = FakeRobot(
+        home_pose=home_pose,
+        simulate_estop=True,
+        estop_probability=1.0,
+    )
+
+    with pytest.raises(EmergencyStopError):
+        robot.open_gripper()
+
+    assert robot.is_emergency_stopped is True
+    assert ("open_gripper",) not in robot.command_history
+
+def test_random_estop_never_triggers(home_pose):
+    robot = FakeRobot(
+        home_pose=home_pose,
+        simulate_estop=True,
+        estop_probability=0.0,
+    )
+
+    robot.open_gripper()
+    robot.close_gripper()
+
+    assert robot.is_emergency_stopped is False
+
+def test_random_estop_is_reproducible(home_pose):
+    def run_until_estop():
+        robot = FakeRobot(
+            home_pose=home_pose,
+            simulate_estop=True,
+            estop_probability=0.2,
+            estop_seed=42,
+        )
+
+        for attempt in range(1, 100):
+            try:
+                robot.open_gripper()
+            except EmergencyStopError:
+                return attempt
+
+        return None
+
+    assert run_until_estop() == run_until_estop()

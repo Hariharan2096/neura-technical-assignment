@@ -44,11 +44,29 @@ def parse_args(
         help="Annotated output image path",
     )
 
+    parser.add_argument(
+        "--simulate-estop",
+        action="store_true",
+        help="Enable random emergency stop simulation",
+    )
+
+    parser.add_argument(
+        "--estop-probability",
+        type=float,
+        default=0.15,
+        help="E-stop probability per robot operation (0.0 to 1.0)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.source == "image" and args.input is None:
         parser.error(
             "--input required when source is image"
+        )
+
+    if not 0.0 <= args.estop_probability <= 1.0:
+        parser.error(
+            "--estop-probability must be between 0.0 and 1.0"
         )
 
     return args
@@ -122,9 +140,12 @@ def create_application(
     robot = FakeRobot(
         home_pose=home_pose,
         grip_success_probability=0.8,
-        motion_delay=3.0,
-        gripper_open_delay=1.5,
-        gripper_close_delay=1.5,
+        motion_delay=1.0,
+        gripper_open_delay=1.0,
+        gripper_close_delay=1.0,
+        simulate_estop=args.simulate_estop,
+        estop_probability=args.estop_probability,
+        estop_seed=15,
     )
 
     # Simulation assumption: a part is available.
@@ -217,7 +238,6 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())
