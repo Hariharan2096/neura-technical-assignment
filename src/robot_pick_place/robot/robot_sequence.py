@@ -141,33 +141,14 @@ class RobotSequence:
                 "Pick-and-place completed",
             )
         
-        except EmergencyStopError as exc:
-            # Never command motion after an E-stop.
-            message = str(exc)
-            self.robot.raise_alarm(message)
-            return CycleResult(
-                CycleStatus.EMERGENCY_STOPPED,
-                grip_attempts,
-                message,
-            )
-
-        except RobotError as exc:
-            message = f"Robot error: {exc}"
-            self.robot.raise_alarm(message)
-            return CycleResult(
-                CycleStatus.ROBOT_ERROR,
-                grip_attempts,
-                message,
-            )
-
         except OperatorAbortError as exc:
-            logger.warning(str(exc))
+            logger.warning(f"Operator requested abort: {exc}")
 
-            # The operator has acknowledged and released E-stop.
-            # Verify this before attempting recovery motion.
-            if self.robot_is_emergency_stopped:
+            # Never attempt homing while E-stop remains active.
+            if self.robot.is_emergency_stopped:
                 message = (
-                    "Cannot return home: E-stop remains active"
+                    "Operator aborted, but E-stop is still active. "
+                    "Return-home motion was not attempted."
                 )
 
                 self.robot.raise_alarm(message)
@@ -179,16 +160,33 @@ class RobotSequence:
                 )
 
             try:
-                # For the FakeRobot, this is a simulated
-                # recovery movement, not a safety-certified
-                # homing procedure.
+                logger.info(
+                    "Operator abort acknowledged. "
+                    "Returning robot to home pose."
+                )
+
                 self.robot.move_home()
+
+            except EmergencyStopError as home_error:
+                message = (
+                    "E-stop activated during return home: "
+                    f"{home_error}"
+                )
+
+                self.robot.raise_alarm(message)
+
+                return CycleResult(
+                    CycleStatus.EMERGENCY_STOPPED,
+                    grip_attempts,
+                    message,
+                )
 
             except RobotError as home_error:
                 message = (
-                    f"Operator aborted, but return home failed: "
+                    "Operator aborted, but return home failed: "
                     f"{home_error}"
                 )
+
                 self.robot.raise_alarm(message)
 
                 return CycleResult(
@@ -197,11 +195,37 @@ class RobotSequence:
                     message,
                 )
 
-            message = "Cycle aborted by operator; robot returned home"
-            self.robot.raise_alarm(message)
+            message = (
+                "Cycle aborted by operator; "
+                "robot returned to home pose"
+            )
+
+            logger.info(message)
 
             return CycleResult(
                 CycleStatus.OPERATOR_ABORTED,
+                grip_attempts,
+                message,
+            )
+
+        except EmergencyStopError as exc:
+            message = str(exc)
+
+            self.robot.raise_alarm(message)
+
+            return CycleResult(
+                CycleStatus.EMERGENCY_STOPPED,
+                grip_attempts,
+                message,
+            )
+
+        except RobotError as exc:
+            message = f"Robot error: {exc}"
+
+            self.robot.raise_alarm(message)
+
+            return CycleResult(
+                CycleStatus.ROBOT_ERROR,
                 grip_attempts,
                 message,
             )

@@ -1,7 +1,7 @@
 from collections import deque
 from collections.abc import Callable, Iterable
 import random
-import time
+import math
 from threading import Event
 
 from robot_pick_place.models import RobotPose
@@ -34,7 +34,6 @@ class FakeRobot(RobotInterface):
         self.gripper_closed = False
         self.part_available = False
 
-        self._emergency_stopped = False
         self._grip_results = deque(grip_results)
         self._last_grip_success = False
 
@@ -56,7 +55,7 @@ class FakeRobot(RobotInterface):
             ("gripper_open_delay", gripper_open_delay),
             ("gripper_close_delay", gripper_close_delay),
         ):
-            if not 0.0 <= value <= float("inf"):
+            if not math.isfinite(value) or value < 0:
                 raise ValueError(f"{name} must be a finite and non-negative.")
 
         self.motion_delay = motion_delay
@@ -86,7 +85,7 @@ class FakeRobot(RobotInterface):
         return self._estop_event.is_set()
     
     def _check_safety(self) -> None:
-        if self._emergency_stopped:
+        if self._estop_event.is_set():
             raise EmergencyStopError(
                 "Robot operation blocked: emergency stop active."
             )
@@ -96,8 +95,7 @@ class FakeRobot(RobotInterface):
 
         self._check_safety()
 
-        if self._estop_event.wait(timeout=duration):
-            self._check_safety()
+        self._estop_event.wait(timeout=duration)
 
         self._check_safety()
 
