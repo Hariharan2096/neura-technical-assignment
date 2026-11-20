@@ -26,7 +26,6 @@ class FakeRobot(RobotInterface):
         gripper_close_delay: float = 1.0,
         simulate_estop: bool = False,
         estop_probability: float = 0.5,
-        estop_seed: int | None = None,
     ) -> None:
         self.home_pose = home_pose
         self.current_pose = home_pose
@@ -72,7 +71,7 @@ class FakeRobot(RobotInterface):
         self.simulate_estop = simulate_estop
         self.estop_probability = estop_probability
 
-        self._estop_rng = random.Random(estop_seed)
+        self._estop_rng = random.Random()
 
         self.on_estop_recovery: (
             Callable[[], RecoveryAction] | None

@@ -102,7 +102,7 @@ def create_camera(args: argparse.Namespace):
         )
 
     if args.source == "webcam":
-        config = CameraConfigLoader()
+        config = CameraConfigLoader(config_path="config/camera_config.yaml")
         return SimpleCamera(
             config=config
         )
@@ -149,7 +149,6 @@ def create_application(
         gripper_close_delay=1.0,
         simulate_estop=args.simulate_estop,
         estop_probability=args.estop_probability,
-        estop_seed=15,
     )
 
     # Callback registration for estop recovery
