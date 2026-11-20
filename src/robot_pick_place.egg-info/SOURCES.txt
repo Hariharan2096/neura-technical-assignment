@@ -19,6 +19,8 @@ src/robot_pick_place/robot/exceptions.py
 src/robot_pick_place/robot/fake_robot.py
 src/robot_pick_place/robot/robot_interface.py
 src/robot_pick_place/robot/robot_sequence.py
+src/robot_pick_place/safety/__init__.py
+src/robot_pick_place/safety/robot_estop_recovery.py
 src/robot_pick_place/vision/__init__.py
 src/robot_pick_place/vision/annotator.py
 src/robot_pick_place/vision/camera_interface.py

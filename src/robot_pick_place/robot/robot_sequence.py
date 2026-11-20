@@ -6,7 +6,7 @@ from typing import Callable
 
 from robot_pick_place.models import ProcessPoses
 from robot_pick_place.robot.robot_interface import RobotInterface
-from robot_pick_place.robot.exceptions import EmergencyStopError, RobotError
+from robot_pick_place.robot.exceptions import EmergencyStopError, RobotError, OperatorAbortError
 
 class CycleStatus(Enum):
     SUCCESS = auto()
@@ -14,6 +14,7 @@ class CycleStatus(Enum):
     GRIP_FAILED = auto()
     EMERGENCY_STOPPED = auto()
     ROBOT_ERROR = auto()
+    OPERATOR_ABORTED = auto()
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,52 @@ class RobotSequence:
             self.robot.raise_alarm(message)
             return CycleResult(
                 CycleStatus.ROBOT_ERROR,
+                grip_attempts,
+                message,
+            )
+
+        except OperatorAbortError as exc:
+            logger.warning(str(exc))
+
+            # The operator has acknowledged and released E-stop.
+            # Verify this before attempting recovery motion.
+            if self.robot_is_emergency_stopped:
+                message = (
+                    "Cannot return home: E-stop remains active"
+                )
+
+                self.robot.raise_alarm(message)
+
+                return CycleResult(
+                    CycleStatus.EMERGENCY_STOPPED,
+                    grip_attempts,
+                    message,
+                )
+
+            try:
+                # For the FakeRobot, this is a simulated
+                # recovery movement, not a safety-certified
+                # homing procedure.
+                self.robot.move_home()
+
+            except RobotError as home_error:
+                message = (
+                    f"Operator aborted, but return home failed: "
+                    f"{home_error}"
+                )
+                self.robot.raise_alarm(message)
+
+                return CycleResult(
+                    CycleStatus.ROBOT_ERROR,
+                    grip_attempts,
+                    message,
+                )
+
+            message = "Cycle aborted by operator; robot returned home"
+            self.robot.raise_alarm(message)
+
+            return CycleResult(
+                CycleStatus.OPERATOR_ABORTED,
                 grip_attempts,
                 message,
             )

@@ -3,3 +3,6 @@ class RobotError(Exception):
 
 class EmergencyStopError(RobotError):
     """Raised when robot operation is blocked by E-stop"""
+
+class OperatorAbortError(RobotError):
+    """Operator requested cycle abort after E-stop recovery."""

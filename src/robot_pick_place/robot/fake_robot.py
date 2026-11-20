@@ -7,6 +7,10 @@ from threading import Event
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.robot_interface import RobotInterface
 from robot_pick_place.robot.exceptions import EmergencyStopError
+from robot_pick_place.safety.robot_estop_recovery import (
+    RecoveryAction,
+    recoverable_operation,
+)
 
 
 class FakeRobot(RobotInterface):
@@ -17,7 +21,7 @@ class FakeRobot(RobotInterface):
         home_pose: RobotPose,
         grip_results: Iterable[bool] = (),
         grip_success_probability: float = 0.5,
-        motion_delay: float = 5.0,
+        motion_delay: float = 5.0,          
         gripper_open_delay: float = 1.0,
         gripper_close_delay: float = 1.0,
         simulate_estop: bool = False,
@@ -70,11 +74,17 @@ class FakeRobot(RobotInterface):
         self.estop_probability = estop_probability
 
         self._estop_rng = random.Random(estop_seed)
+
+        self.on_estop_recovery: (
+            Callable[[], RecoveryAction] | None
+        ) = None
+
+        self._random_estop_triggered = False
         
     @property
-    def is_emergency_stopped(self):
-        return self._emergency_stopped
-
+    def is_emergency_stopped(self) -> bool:
+        return self._estop_event.is_set()
+    
     def _check_safety(self) -> None:
         if self._emergency_stopped:
             raise EmergencyStopError(
@@ -100,15 +110,21 @@ class FakeRobot(RobotInterface):
         if not self.simulate_estop:
             return
 
+        if self._random_estop_triggered:
+            return
+
         self._check_safety()
 
         if self._estop_rng.random() < self.estop_probability:
+            self._random_estop_triggered = True
+
             self.trigger_emergency_stop()
 
             raise EmergencyStopError(
                 f"Simulated random E-stop during {operation}"
             )
 
+    @recoverable_operation
     def move_to(self, pose: RobotPose) -> None:
         """Simulate the fake robot movement to a target pose."""
         
@@ -140,7 +156,7 @@ class FakeRobot(RobotInterface):
         self.move_to(self.home_pose)
         self.command_history.append(("move_home",))
 
-
+    @recoverable_operation
     def open_gripper(self) -> None:
         """Executes gripper open command."""
         self._check_safety()
@@ -157,7 +173,7 @@ class FakeRobot(RobotInterface):
 
         self.command_history.append(("open_gripper",))
 
-
+    @recoverable_operation
     def close_gripper(self) -> None:
         """Simulates the gripper close action"""
         self._check_safety()
@@ -200,8 +216,6 @@ class FakeRobot(RobotInterface):
 
     def trigger_emergency_stop(self) -> None:
         self._estop_event.set()
-        self._emergency_stopped = True
 
     def release_emergency_stop(self) -> None:
         self._estop_event.clear()
-        self._emergency_stopped = False

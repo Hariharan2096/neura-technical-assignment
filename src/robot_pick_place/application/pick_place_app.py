@@ -141,6 +141,7 @@ class PickPlaceApplication:
             if seq_result.status in (
                 CycleStatus.EMERGENCY_STOPPED,
                 CycleStatus.ROBOT_ERROR,
+                CycleStatus.OPERATOR_ABORTED,
             ):
                 aborted = True
                 break

@@ -7,15 +7,19 @@ from robot_pick_place.vision.simple_camera import SimpleCamera
 from robot_pick_place.vision.image_file_camera import ImageFileCamera
 from robot_pick_place.vision.load_camera_config import CameraConfigLoader 
 
+from robot_pick_place.vision.object_detector import ObjectDetector
+from robot_pick_place.vision.annotator import ImageAnnotator
 
-from robot_pick_place.application.pick_place_app import PickPlaceApplication
-from robot_pick_place.robot.robot_sequence import RobotSequence
-from robot_pick_place.geometry.calibration import CoordinateTransformer
-from robot_pick_place.geometry.pose_generator import PoseGenerator
 from robot_pick_place.models import RobotPose
 from robot_pick_place.robot.fake_robot import FakeRobot
-from robot_pick_place.vision.annotator import ImageAnnotator
-from robot_pick_place.vision.object_detector import ObjectDetector
+from robot_pick_place.robot.robot_sequence import RobotSequence
+
+from robot_pick_place.geometry.calibration import CoordinateTransformer
+from robot_pick_place.geometry.pose_generator import PoseGenerator
+
+from robot_pick_place.application.pick_place_app import PickPlaceApplication
+
+from robot_pick_place.safety.robot_estop_recovery import RecoveryAction
 
 def parse_args(
         argv: list[str] | None = None,
@@ -148,6 +152,12 @@ def create_application(
         estop_seed=15,
     )
 
+    # Callback registration for estop recovery
+    if args.simulate_estop:
+        robot.on_estop_recovery = (
+            lambda: request_estop_recovery(robot)
+        )
+
     # Simulation assumption: a part is available.
     robot.set_part_available(True)
 
@@ -185,6 +195,61 @@ def create_application(
         place_pose=place_pose,
         place_approach_pose=place_approach_pose,
     )
+
+def request_estop_recovery(robot: FakeRobot) -> RecoveryAction:
+    """Ask the operator to acknowledge and recover from E-stop."""
+
+    print("\n" + "=" * 55)
+    print("EMERGENCY STOP ACTIVATED")
+    print("=" * 55)
+
+    print("Robot operations have been stopped.")
+    print("Operator acknowledgement is required.")
+
+    # Stage 1: Acknowledge and authorize release.
+    while True:
+        response = input(
+            "\nAcknowledge and authorize simulated "
+            "E-stop release? [y/n]: "
+        ).strip().lower()
+
+        if response == "y":
+            robot.release_emergency_stop()
+            print(
+                "[DEBUG] E-stop active after release:",
+                robot.is_emergency_stopped,
+            )
+            print("\nE-stop released.")
+            break
+
+        if response == "n":
+            print(
+                "E-stop remains active. "
+                "Robot motion is not permitted."
+            )
+            continue
+
+        print("Invalid choice. Enter y or n.")
+
+     # Stage 2: Choose recovery action.
+    while True:
+        print("\nSelect recovery action:")
+        print("1. Continue interrupted cycle")
+        print("2. Abort cycle and return home")
+
+        choice = input(
+            "\nEnter choice [1/2]: "
+        ).strip()
+
+        if choice == "1":
+            print("\nContinuing interrupted cycle...")
+            return RecoveryAction.CONTINUE
+
+        if choice == "2":
+            print("\nAborting cycle. Returning home...")
+            return RecoveryAction.ABORT
+
+        print("Invalid choice. Enter 1 or 2.")
 
 def main(argv: list[str] | None = None) -> int:
     """Execute the application and return an exit code."""
